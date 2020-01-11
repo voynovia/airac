@@ -1,0 +1,11 @@
+[package]
+name = "airac"
+description = "Getting Airac by UTC date"
+license = "MIT"
+version = "0.1.0"
+authors = ["Igor Voynov <igor@voynov.dev>"]
+edition = "2018"
+repository = "https://github.com/voynovia/airac"
+
+[dependencies]
+chrono = "0.4"
