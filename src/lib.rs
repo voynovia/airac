@@ -14,27 +14,29 @@ pub struct Airac {
 
 impl Airac {
 
-    fn cycle() -> Duration { Duration::weeks(4) }
+//    fn cycle() -> Duration { Duration::weeks(1) }
     fn epoch() -> NaiveDate { NaiveDate::from_ymd(1901, 1, 10) }
 
-    pub fn from_date_str(date: &str) -> Airac {
+    pub fn from_date_str(date: &str, week_cycle: i64) -> Airac {
+        let duration = Duration::weeks(week_cycle);
         let naive_date = NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("Wrong date format");
-        let got = (naive_date.sub(Airac::epoch()) / Airac::cycle().num_seconds() as i32).num_seconds();
-        let effective = Airac::epoch().add(Airac::cycle() * got as i32);
-        Airac::from_date(effective)
+        let got = (naive_date.sub(Airac::epoch()) / duration.num_seconds() as i32).num_seconds();
+        let effective = Airac::epoch().add(duration * got as i32);
+        Airac::from_date(effective, duration)
     }
 
-    pub fn from_airac_str(yyoo: &str) -> Result<Airac, AiracError> {
+    pub fn from_airac_str(yyoo: &str, week_cycle: i64) -> Result<Airac, AiracError> {
+        let duration = Duration::weeks(week_cycle);
         let (year, ordinal) = Airac::get_identifiers(yyoo)?;
         let date = NaiveDate::from_ymd((year - 1) as i32, 12, 31);
-        let last_airac_of_previous_year = date.sub(Airac::epoch()) / Airac::cycle().num_seconds() as i32;
-        let effective = Airac::epoch().add(Airac::cycle() * (last_airac_of_previous_year.num_seconds() as i32 + ordinal as i32));
-        Ok(Airac::from_date(effective))
+        let last_airac_of_previous_year = date.sub(Airac::epoch()) / duration.num_seconds() as i32;
+        let effective = Airac::epoch().add(duration * (last_airac_of_previous_year.num_seconds() as i32 + ordinal as i32));
+        Ok(Airac::from_date(effective, duration))
     }
 
-    fn from_date(effective: NaiveDate) -> Airac {
+    fn from_date(effective: NaiveDate, duration: Duration) -> Airac {
         let year = effective.year() as u16;
-        let ordinal = ((effective.ordinal()-1)/28 + 1) as u8;
+        let ordinal = ((effective.ordinal()-1)/duration.num_days() as u32 + 1) as u8;
         Airac { effective, year, ordinal, value: format!("{:02}{:02}", year%100, ordinal) }
     }
 
@@ -62,14 +64,6 @@ mod tests {
         value: String
     }
 
-
-    #[test]
-    fn from_string() {
-        let airac = Airac::from_airac_str("1913").unwrap();
-        assert_eq!(airac.year, 2019);
-        assert_eq!(airac.ordinal, 13);
-    }
-
     #[test]
     fn get_identifiers() {
         let (year, ordinal) = Airac::get_identifiers("2001").unwrap();
@@ -78,7 +72,30 @@ mod tests {
     }
 
     #[test]
-    fn from_date() {
+    fn from_string_month() {
+        let airac = Airac::from_airac_str("1913", 4).unwrap();
+        assert_eq!(airac.effective, NaiveDate::from_ymd(2019,12,05));
+    }
+
+    #[test]
+    fn from_string_week() {
+        let airac = Airac::from_airac_str("2001", 1).unwrap();
+        assert_eq!(airac.effective, NaiveDate::from_ymd(2020,01,02));
+        let airac = Airac::from_airac_str("2005", 1).unwrap();
+        assert_eq!(airac.effective, NaiveDate::from_ymd(2020,01,30));
+    }
+
+    #[test]
+    fn from_date_week() {
+        let airac = Airac::from_date_str("2020-01-02", 1);
+        assert_eq!(airac.ordinal, 1);
+
+        let airac = Airac::from_date_str("2020-01-30", 1);
+        assert_eq!(airac.ordinal, 5);
+    }
+
+    #[test]
+    fn from_date_month() {
         let mut airac_tests: Vec<AiracTest> = Vec::new();
         airac_tests.push(AiracTest { date: "1998-01-29".to_string(), value: "9802".to_string() });
         airac_tests.push(AiracTest { date: "2003-01-23".to_string(), value: "0301".to_string() });
@@ -117,7 +134,7 @@ mod tests {
         airac_tests.push(AiracTest { date: "2020-01-02".to_string(), value: "2001".to_string() });
 
         for airac_test in airac_tests {
-            let airac = Airac::from_date_str(airac_test.date.as_str());
+            let airac = Airac::from_date_str(airac_test.date.as_str(), 4);
             assert_eq!(airac.value, airac_test.value);
         }
     }
