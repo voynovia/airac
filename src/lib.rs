@@ -24,7 +24,7 @@ impl Airac {
         Airac::from_date(effective, duration)
     }
 
-    pub fn from_airac_str(yyoo: &str, week_cycle: i64) -> Result<Airac, AiracError> {
+    pub fn from_airac_str(yyoo: u16, week_cycle: i64) -> Result<Airac, AiracError> {
         let duration = Duration::weeks(week_cycle);
         let (year, ordinal) = Airac::get_identifiers(yyoo)?;
         let date = NaiveDate::from_ymd((year - 1) as i32, 12, 31);
@@ -40,17 +40,16 @@ impl Airac {
         Airac { effective, year, ordinal, value }
     }
 
-    fn get_identifiers(yyoo: &str) -> Result<(u16, u8), AiracError> {
-        if yyoo.len() != 4 {
+    fn get_identifiers(yyoo: u16) -> Result<(u16, u8), AiracError> {
+        if yyoo > 9999 {
             let error = AiracError::new(format!("illegal AIRAC id {}", yyoo).as_str());
             return Err(error)
         }
-        let digit: u16 = yyoo.parse()?;
-        let mut year = (digit/100) + 1900;
+        let mut year = (yyoo/100) + 1900;
         if year <= 1963 {
             year += 100
         }
-        let ordinal: u8 = (digit%100) as u8;
+        let ordinal: u8 = (yyoo%100) as u8;
         Ok((year, ordinal))
     }
 }
@@ -66,22 +65,22 @@ mod tests {
 
     #[test]
     fn get_identifiers() {
-        let (year, ordinal) = Airac::get_identifiers("2001").unwrap();
+        let (year, ordinal) = Airac::get_identifiers(2001).unwrap();
         assert_eq!(year, 2020);
         assert_eq!(ordinal, 1);
     }
 
     #[test]
     fn from_string_month() {
-        let airac = Airac::from_airac_str("1913", 4).unwrap();
+        let airac = Airac::from_airac_str(1913, 4).unwrap();
         assert_eq!(airac.effective, NaiveDate::from_ymd(2019,12,05));
     }
 
     #[test]
     fn from_string_week() {
-        let airac = Airac::from_airac_str("2001", 1).unwrap();
+        let airac = Airac::from_airac_str(2001, 1).unwrap();
         assert_eq!(airac.effective, NaiveDate::from_ymd(2020,01,02));
-        let airac = Airac::from_airac_str("2005", 1).unwrap();
+        let airac = Airac::from_airac_str(2005, 1).unwrap();
         assert_eq!(airac.effective, NaiveDate::from_ymd(2020,01,30));
     }
 
